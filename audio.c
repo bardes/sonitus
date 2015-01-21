@@ -1,42 +1,26 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-// Feel free to experiment with those
-#define FUNDAMENTAL_PITCH (440.0) // A.K.A. C4
-#define SAMPLE_RATE (64000)
-#define FINE_TUNE (1.06)
-#define BREATH_LEN (20)	// Pause between notes in milliseconds
+#include "audio.h"
 
-// Don't touch unless you are me!
-#define TONE_RATIO (1.0594630943592953) // 2^(1/2)
-#define C0_BASE_FREQ (FUNDAMENTAL_PITCH*0.033108221698727895) // (2^(1/12))^57
-#define N_TONES (96)
-uint16_t note_periods[N_TONES];
+Note tune[] = {
+	{150,	E5,	1},
+	{150,	E5,	1},
+	{150,	REST,	1},
+	{150,	E5,	1},
 
-typedef struct {
-	uint16_t length;	// Lenght of note in milliseconds
-	uint8_t code;		// Note index on the note_periodds array
-	uint8_t effect;		// Can be used to apply effects on notes
-} note;
+	{150,	REST,	1},
+	{150,	C5,	0},
+	{150,	E5,	1},
+	{150,	REST,	1},
 
-note tune[] = {
-	{150, 63, 1},	// E4
-	{150, 63, 1},	// E4
-	{150, 96, 1},	// Pause
-	{150, 63, 1},	// E4
+	{150,	G5,	0},
+	{3*150,	REST,	1},
 
-	{150, 96, 1},	// Pause
-	{150, 59, 0},	// C4
-	{150, 63, 1},	// E4
-	{150, 96, 1},	// Pause
+	{2*150,	G4,	0},
+	{2*150,	REST,	1},
 
-	{150, 66, 0},	// G4
-	{3*150, 96, 1},	// Pause
-
-	{2*150, 54, 0},	// G3
-	{2*150, 96, 1},	// Pause
-
-	{3000, 96, 1}	// Pause 3s
+	{3000,	REST,	1}
 };
 
 int main(void) {
@@ -51,16 +35,14 @@ int main(void) {
 
 	//Pre-calculating the period of each note
 	float freq = C0_BASE_FREQ;
-	for(uint8_t note = 0; note < N_TONES; ++note) {
-		note_periods[note] = (SAMPLE_RATE/2)/freq; 
+	for(uint8_t tone = 0; tone < REST; ++tone) {
+		tone_periods[tone] = (SAMPLE_RATE/2)/freq; 
 		freq *= TONE_RATIO;
 	}
 
-
-	sei();				// Enable interrupts globally
-	
-	while(1);
-	return 0;
+	sei();			// Enable interrupts globally
+	while(1);		// Tail spin :p
+	return 0;		// Good luck whith that
 }
 
 ISR(TIMER0_COMPA_vect) {
@@ -82,13 +64,13 @@ ISR(TIMER0_COMPA_vect) {
 		if(len >= tune[mc].length) {
 			len = 0;
 			++mc;
-			if(mc == sizeof(tune)/sizeof(note)) mc = 0;
+			if(mc == sizeof(tune)/sizeof(Note)) mc = 0;
 		}
 	}
 
 	// Now generate the next sample
-	if(wave_tick >= note_periods[tune[mc].code] &&
-	   len > BREATH_LEN && tune[mc].code < N_TONES) {
+	if(wave_tick >= tone_periods[tune[mc].tone] &&
+	   len > BREATH_LEN && tune[mc].tone < REST) {
 		sample = ~sample;
 		wave_tick = 0;
 	}
