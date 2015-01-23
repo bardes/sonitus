@@ -2,26 +2,7 @@
 #include <avr/interrupt.h>
 
 #include "audio.h"
-
-Note tune[] = {
-	{150,	E5,	1},
-	{150,	E5,	1},
-	{150,	REST,	1},
-	{150,	E5,	1},
-
-	{150,	REST,	1},
-	{150,	C5,	0},
-	{150,	E5,	1},
-	{150,	REST,	1},
-
-	{150,	G5,	0},
-	{3*150,	REST,	1},
-
-	{2*150,	G4,	0},
-	{2*150,	REST,	1},
-
-	{3000,	REST,	1}
-};
+#include "mario_tune.h"
 
 int main(void) {
 	DDRD = 0xFF;		// Set up port D as output
@@ -32,13 +13,6 @@ int main(void) {
 
 	// Fire an interrupt at ~40KHz
 	OCR0A = FINE_TUNE * (F_CPU/SAMPLE_RATE);
-
-	//Pre-calculating the period of each note
-	float freq = C0_BASE_FREQ;
-	for(uint8_t tone = 0; tone < REST; ++tone) {
-		tone_periods[tone] = (SAMPLE_RATE/2)/freq; 
-		freq *= TONE_RATIO;
-	}
 
 	sei();			// Enable interrupts globally
 	while(1);		// Tail spin :p
@@ -61,16 +35,16 @@ ISR(TIMER0_COMPA_vect) {
 		len_tick = 0;	// Reset the len_tick counter
 
 		// Check if it's time to move to the next note
-		if(len >= tune[mc].length) {
+		if(len >= mario_tune[mc].length) {
 			len = 0;
 			++mc;
-			if(mc == sizeof(tune)/sizeof(Note)) mc = 0;
+			if(mc == sizeof(mario_tune)/sizeof(Note)) mc = 0;
 		}
 	}
 
 	// Now generate the next sample
-	if(wave_tick >= tone_periods[tune[mc].tone] &&
-	   len > BREATH_LEN && tune[mc].tone < REST) {
+	if(wave_tick >= tone_periods[mario_tune[mc].tone] &&
+	   len > BREATH_LEN && mario_tune[mc].tone < REST) {
 		sample = ~sample;
 		wave_tick = 0;
 	}
